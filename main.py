@@ -43,6 +43,16 @@ def post_tarefa(tarefa : Tarefa):
 
 @app.delete('/delete/{nome}')
 def deletar_tarefa(nome : str):
-    for nome in db_tarefas.values():
-        return {"message" : nome}
+    for id_tarefa, tarefa in db_tarefas.items():
+        if nome == tarefa.nome :
+            tarefa_deletada = db_tarefas.pop(id_tarefa)
+            return {"message" : "Tarefa deletada", "data" : tarefa_deletada}
     raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+
+@app.put("/alterar/{nome}")
+def alterar_tarefa(nome : str):
+    for id_tarefa, tarefa in db_tarefas.items():
+        if nome == tarefa.nome :
+            db_tarefas[id_tarefa].concluida = True
+            return {"message" : "Tarefa Finalizada", "data" : db_tarefas[id_tarefa]}
+    return {"teste" : "sim"}
