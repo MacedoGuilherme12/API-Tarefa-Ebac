@@ -23,7 +23,7 @@ db_tarefas = {}
 @app.get("/tarefas/{id_tarefa}")
 def getTarefa(id_tarefa: int):
     if id_tarefa in db_tarefas:
-        return {"data": db_tarefas[id_tarefa]}
+        return {"data": list(db_tarefas[id_tarefa])}
     raise HTTPException(status_code=409,detail="Essa tarefa não existe!")
         
 
