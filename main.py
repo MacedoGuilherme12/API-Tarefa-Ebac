@@ -55,4 +55,4 @@ def alterar_tarefa(nome : str):
         if nome == tarefa.nome :
             db_tarefas[id_tarefa].concluida = True
             return {"message" : "Tarefa Finalizada", "data" : db_tarefas[id_tarefa]}
-    return {"teste" : "sim"}
+    raise HTTPException(status_code=404, detail="Tarefa não encontrada")
