@@ -1,7 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBasic, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
+import secrets
 import uuid
+
+meu_usuario = "admin"
+minha_senha="admin"
+security = HTTPBasic()
 
 app = FastAPI(
     title="API Tarefas EBAC",
@@ -12,7 +18,15 @@ app = FastAPI(
         "name" : "Guilherme Macedo Anastacio"
     }
 )
-
+def auth_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    is_username_corretc = secrets.compare_digest(credentials.username, meu_usuario)
+    is_password_corretc = secrets.compare_digest(credentials.password, minha_senha)
+    if not (is_password_corretc and is_username_corretc):
+        raise HTTPException(
+            status_code=401,
+            detail="Usuario e Senha incorretos",
+            headers={"WWW-Authenticate" : "Basic"}
+        )
 class Tarefa(BaseModel):
     nome : str
     descricao : str
@@ -28,15 +42,29 @@ def getTarefa(id_tarefa: int):
         
 
 @app.get("/tarefas")
-def getTarefas():
-    return {"Tarefas" : db_tarefas}
+def getTarefas(page : int = 1, limit = 10,credentials : HTTPAuthorizationCredentials = Depends(auth_user)):
+    if not db_tarefas:
+        raise HTTPException(status_code=404, detail="Não existe tarefas!!")
+
+    start = (page - 1) * limit
+    end = page + limit
+    
+    tarefas_paginadas = [
+        {"id" : id_tarefa, "nome" : tarefa.nome, "descricao" : tarefa.descricao, "concluida" : tarefa.concluida}
+        for id_tarefa, tarefa in list(db_tarefas.items())[start:end]
+    ]
+
+    return {
+        "page" : page,
+        "limit" : limit,
+        "total" : len(db_tarefas),
+        "livros" : tarefas_paginadas
+    }
 
 
 @app.post("/adiciona_tarefa")
 def post_tarefa(tarefa : Tarefa):
-    for id_tarefasDb in db_tarefas.keys():
-        if db_tarefas[id_tarefasDb].nome == tarefa.nome:
-            raise HTTPException(status_code=409, detail="Tarefa ja existe!")
+    
     id_tarefa = str(uuid.uuid4()) 
     db_tarefas[id_tarefa] = tarefa
     return { "message" : "Tarefa adicionada com sucesso!", "id" : id_tarefa, "Tarefa" : db_tarefas[id_tarefa]}
