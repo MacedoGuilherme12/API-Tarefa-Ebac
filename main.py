@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import HTTPBasic, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from typing import Optional
 import secrets
@@ -35,30 +35,40 @@ class Tarefa(BaseModel):
 db_tarefas = {}
 
 @app.get("/tarefas/{id_tarefa}")
-def getTarefa(id_tarefa: int):
+def getTarefa(id_tarefa: str):
     if id_tarefa in db_tarefas:
         return {"data": list(db_tarefas[id_tarefa])}
     raise HTTPException(status_code=409,detail="Essa tarefa não existe!")
         
 
 @app.get("/tarefas")
-def getTarefas(page : int = 1, limit = 10,credentials : HTTPAuthorizationCredentials = Depends(auth_user)):
+def getTarefas(page: int = 1, limit: int = 10, credentials: HTTPBasicCredentials = Depends(security)):
+    is_username_correct = secrets.compare_digest(credentials.username, meu_usuario)
+    is_password_correct = secrets.compare_digest(credentials.password, minha_senha)
+    if not (is_username_correct and is_password_correct):
+        raise HTTPException(
+            status_code=401,
+            detail="Usuario e Senha incorretos",
+            headers={"WWW-Authenticate": "Basic"}
+        )
+
     if not db_tarefas:
         raise HTTPException(status_code=404, detail="Não existe tarefas!!")
 
     start = (page - 1) * limit
-    end = page + limit
-    
-    tarefas_paginadas = [
-        {"id" : id_tarefa, "nome" : tarefa.nome, "descricao" : tarefa.descricao, "concluida" : tarefa.concluida}
-        for id_tarefa, tarefa in list(db_tarefas.items())[start:end]
-    ]
+    end = start + limit
 
+    lista_ordenada = sorted(db_tarefas.items(), key=lambda x : x[0])
+    tarefas_paginadas = [
+        {"id": id_tarefa, "nome": tarefa.nome, "descricao": tarefa.descricao, "concluida": tarefa.concluida}
+        for id_tarefa, tarefa in lista_ordenada[start:end]
+    ]
+    
     return {
-        "page" : page,
-        "limit" : limit,
-        "total" : len(db_tarefas),
-        "livros" : tarefas_paginadas
+        "page": page,
+        "limit": limit,
+        "total": len(db_tarefas),
+        "tarefas": tarefas_paginadas
     }
 
 
